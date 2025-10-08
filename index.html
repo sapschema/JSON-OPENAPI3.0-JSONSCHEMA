@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Google Site Verification -->
+<meta name="google-site-verification" content="3IrXqVGW4ZcNuilTGqSEiKyEpu0MC_coikyQ2LhfjCk" />
+
+<!-- SEO Meta Tags -->
+<title>JSON & XML Schema Generator | OpenAPI 3.0 & XSD</title>
+<meta name="description" content="Free online tool to convert JSON to OpenAPI 3.0 schema and XML to XSD. Copy or download schemas instantly.">
+<meta name="keywords" content="JSON, OpenAPI 3.0, XML, XSD, schema generator, API, developer tools, free online tool">
+<meta name="author" content="Your Name or Brand">
+<meta name="robots" content="index, follow">
+
+<!-- Open Graph / Social Sharing -->
+<meta property="og:title" content="JSON & XML Schema Generator">
+<meta property="og:description" content="Convert JSON to OpenAPI 3.0 and XML to XSD online for free. Copy or download schemas instantly.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://friendly-penguin-1234.tiiny.site/">
+<meta property="og:image" content="https://friendly-penguin-1234.tiiny.site/preview-image.png">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="JSON & XML Schema Generator">
+<meta name="twitter:description" content="Free online tool to convert JSON to OpenAPI 3.0 and XML to XSD.">
+<meta name="twitter:image" content="https://friendly-penguin-1234.tiiny.site/preview-image.png">
+
+<!-- Favicon -->
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+
+<style>
+  body { font-family: Arial, sans-serif; background:#f7f7f7; color:#222; padding:2rem; }
+  h1,h2 { text-align:center; color:#0055aa; }
+  textarea { width:100%; height:200px; padding:1rem; font-family:monospace; border-radius:8px; border:1px solid #ccc; margin-bottom:1rem; }
+  button { background:#0055aa; color:#fff; border:none; border-radius:5px; padding:0.6rem 1.2rem; margin-top:0.5rem; cursor:pointer; }
+  button:hover { background:#003f82; }
+  pre { background:#fff; padding:1rem; border-radius:8px; border:1px solid #ddd; overflow:auto; white-space: pre-wrap; word-wrap: break-word; }
+  .btn-row { display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+  .section { margin-bottom:3rem; }
+</style>
+</head>
+<body>
+
+<h1>JSON → OpenAPI 3.0 / XML → XSD Generator</h1>
+
+<div class="section">
+<h2>JSON → OpenAPI 3.0</h2>
+<textarea id="jsonInput" placeholder="Paste your JSON here..."></textarea>
+<div class="btn-row">
+  <button onclick="generateOpenAPISchema()">Generate OpenAPI 3.0 Schema</button>
+  <button onclick="copyOutput('json')">Copy Schema</button>
+  <button onclick="downloadJSON('json')">Download .json</button>
+</div>
+<h3>Generated OpenAPI 3.0 Schema:</h3>
+<pre id="jsonOutput">{}</pre>
+</div>
+
+<div class="section">
+<h2>XML → XSD</h2>
+<textarea id="xmlInput" placeholder="Paste your XML here..."></textarea>
+<div class="btn-row">
+  <button onclick="generateXSD()">Generate XSD</button>
+  <button onclick="copyOutput('xml')">Copy XSD</button>
+  <button onclick="downloadJSON('xml')">Download .xsd</button>
+</div>
+<h3>Generated XSD:</h3>
+<pre id="xmlOutput">{}</pre>
+</div>
+
+<script>
+/* ===== JSON → OpenAPI 3.0 ===== */
+function jsonToSchema(json) {
+  if (Array.isArray(json)) return { type: "array", items: json.length>0?jsonToSchema(json[0]):{} };
+  if (typeof json==="object" && json!==null) {
+    const props = {};
+    for (const [k,v] of Object.entries(json)) props[k]=jsonToSchema(v);
+    return { type:"object", properties:props };
+  }
+  if (typeof json==="string") return { type:"string" };
+  if (typeof json==="number") return { type:"number" };
+  if (typeof json==="boolean") return { type:"boolean" };
+  return {};
+}
+
+function generateOpenAPISchema() {
+  const input = document.getElementById("jsonInput").value;
+  const output = document.getElementById("jsonOutput");
+  try {
+    const obj = JSON.parse(input);
+    const schema = jsonToSchema(obj);
+    const openApiDoc = {
+      openapi:"3.0.3",
+      info:{ title:"Generated API", version:"1.0.0", description:"Generated from JSON" },
+      paths:{},
+      components:{ schemas:{ GeneratedSchema:schema } }
+    };
+    output.textContent = JSON.stringify(openApiDoc,null,2);
+  } catch(e) {
+    output.textContent = "❌ Invalid JSON. Please check your input.";
+  }
+}
+
+/* ===== XML → XSD ===== */
+function generateXSD() {
+  const input = document.getElementById("xmlInput").value.trim();
+  const output = document.getElementById("xmlOutput");
+  if(!input) { output.textContent="❌ Empty XML input"; return; }
+  try {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(input,"application/xml");
+    if(xmlDoc.getElementsByTagName("parsererror").length) throw new Error("Invalid XML");
+
+    function buildXSD(element) {
+      let xsd = `<xs:element name="${element.nodeName}">\n`;
+      const children = Array.from(element.children);
+      if(children.length===0) {
+        xsd += `  <xs:complexType>\n    <xs:simpleContent>\n      <xs:extension base="xs:string"/>\n    </xs:simpleContent>\n  </xs:complexType>\n`;
+      } else {
+        xsd += `  <xs:complexType>\n    <xs:sequence>\n`;
+        children.forEach(child => {
+          xsd += buildXSD(child).split("\n").map(l=>"      "+l).join("\n") + "\n";
+        });
+        xsd += "    </xs:sequence>\n  </xs:complexType>\n";
+      }
+      xsd += `</xs:element>`;
+      return xsd;
+    }
+
+    const root = xmlDoc.documentElement;
+    const xsdHeader = `<?xml version="1.0" encoding="UTF-8"?>\n<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">\n`;
+    const xsdFooter = `\n</xs:schema>`;
+    const xsdContent = buildXSD(root);
+    output.textContent = xsdHeader + xsdContent + xsdFooter;
+  } catch(e) {
+    output.textContent = "❌ Invalid XML. Please check your input.";
+  }
+}
+
+/* ===== Copy & Download ===== */
+function copyOutput(type) {
+  const text = type==="json" ? document.getElementById("jsonOutput").textContent
+                              : document.getElementById("xmlOutput").textContent;
+  navigator.clipboard.writeText(text).then(()=>alert("Copied to clipboard!"));
+}
+
+function downloadJSON(type) {
+  const text = type==="json" ? document.getElementById("jsonOutput").textContent
+                              : document.getElementById("xmlOutput").textContent;
+  const blob = new Blob([text],{type:type==="json"?"application/json":"application/xml"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = type==="json"?"openapi_schema.json":"schema.xsd";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>
